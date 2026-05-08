@@ -1,56 +1,49 @@
 <script lang="ts">
   import { page } from '$app/state'
+  import { onMount } from 'svelte'
+  import dayjs from 'dayjs'
+
+  import {
+    db
+  } from '$lib/firebase'
 
   import {
     collection,
-    doc,
-    getDoc,
-    onSnapshot,
     query,
     where,
     orderBy,
-    addDoc
+    onSnapshot,
+    addDoc,
+    getDoc,
+    doc
   } from 'firebase/firestore'
 
-  import { db } from '$lib/firebase'
-
-  import { onMount } from 'svelte'
-
-  import dayjs from 'dayjs'
+  const shipperId = page.params.id
 
   let shipper = $state<any>(null)
 
   let transactions = $state<any[]>([])
 
-  const shipperId = page.params.id
-
-  // transfer
-
   let transferAmount = $state(0)
-
-  // cash counter
-
-  let count500 = $state(0)
-  let count200 = $state(0)
-  let count100 = $state(0)
-  let count50 = $state(0)
-  let count20 = $state(0)
-  let count10 = $state(0)
 
   onMount(async () => {
 
-    const shipperDoc = await getDoc(
+    // shipper
+
+    const shipperSnap = await getDoc(
       doc(db, 'shippers', shipperId)
     )
 
-    if (shipperDoc.exists()) {
+    if (shipperSnap.exists()) {
 
       shipper = {
-        id: shipperDoc.id,
-        ...shipperDoc.data()
+        id: shipperSnap.id,
+        ...shipperSnap.data()
       }
 
     }
+
+    // realtime transactions
 
     const q = query(
       collection(db, 'transactions'),
@@ -128,69 +121,62 @@
 
   }
 
-  function monthlyDepositCount() {
-
-    return transactions.filter(
-      t =>
-        t.type === 'deposit' &&
-        isThisMonth(t.createdAt)
-    ).length
-
-  }
-
-  function totalCashInput() {
+  function balanceToday() {
 
     return (
-      count500 * 500000 +
-      count200 * 200000 +
-      count100 * 100000 +
-      count50 * 50000 +
-      count20 * 20000 +
-      count10 * 10000
+      totalTodayDeposit()
+      - totalTodayTransfer()
     )
 
   }
 
-  async function saveDeposit() {
+  function monthlyDepositCount() {
 
-    if (totalCashInput() <= 0)
-      return
+  const uniqueDays = new Set()
 
-    await addDoc(
-      collection(db, 'transactions'),
-      {
-        shipperId,
-        type: 'deposit',
-        amount: totalCashInput(),
-        createdAt: Date.now(),
-        note: 'Nộp tiền mặt'
-      }
-    )
+  transactions.forEach(t => {
 
-    count500 = 0
-    count200 = 0
-    count100 = 0
-    count50 = 0
-    count20 = 0
-    count10 = 0
+    if (
+      t.type === 'deposit' &&
+      isThisMonth(t.createdAt)
+    ) {
 
-  }
+      uniqueDays.add(
+        dayjs(t.createdAt).format(
+          'DD/MM/YYYY'
+        )
+      )
+
+    }
+
+  })
+
+  return uniqueDays.size
+
+}
 
   async function saveTransfer() {
 
     if (!transferAmount)
       return
 
+    const newTransaction = {
+      shipperId,
+      type: 'bank_transfer',
+      amount: Number(transferAmount),
+      note: 'Chuyển khoản',
+      createdAt: Date.now()
+    }
+
     await addDoc(
       collection(db, 'transactions'),
-      {
-        shipperId,
-        type: 'bank_transfer',
-        amount: Number(transferAmount),
-        createdAt: Date.now(),
-        note: 'Chuyển khoản'
-      }
+      newTransaction
     )
+
+    transactions = [
+      newTransaction,
+      ...transactions
+    ]
 
     transferAmount = 0
 
@@ -221,12 +207,14 @@
         </h1>
 
         <div
-          class="text-slate-500 mt-3"
+          class="text-slate-500 mt-2"
         >
           {shipper.bankName}
         </div>
 
-        <div class="text-slate-500">
+        <div
+          class="text-slate-500"
+        >
           {shipper.bankNumber}
         </div>
 
@@ -237,7 +225,7 @@
     <!-- Stats -->
 
     <div
-      class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+      class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
     >
 
       <!-- Deposit -->
@@ -247,79 +235,13 @@
       >
 
         <div class="text-slate-500">
-          Tiền mặt đã nộp hôm nay
+          Tiền mặt hôm nay
         </div>
 
         <div
           class="text-4xl font-bold text-blue-600 mt-3"
         >
           {totalTodayDeposit().toLocaleString()} đ
-        </div>
-
-        <div class="mt-6 space-y-3">
-
-          <div
-            class="grid grid-cols-2 gap-3"
-          >
-
-            <input
-              bind:value={count500}
-              type="number"
-              placeholder="500k"
-              class="border rounded-2xl p-3"
-            />
-
-            <input
-              bind:value={count200}
-              type="number"
-              placeholder="200k"
-              class="border rounded-2xl p-3"
-            />
-
-            <input
-              bind:value={count100}
-              type="number"
-              placeholder="100k"
-              class="border rounded-2xl p-3"
-            />
-
-            <input
-              bind:value={count50}
-              type="number"
-              placeholder="50k"
-              class="border rounded-2xl p-3"
-            />
-
-            <input
-              bind:value={count20}
-              type="number"
-              placeholder="20k"
-              class="border rounded-2xl p-3"
-            />
-
-            <input
-              bind:value={count10}
-              type="number"
-              placeholder="10k"
-              class="border rounded-2xl p-3"
-            />
-
-          </div>
-
-          <div
-            class="text-2xl font-bold"
-          >
-            Tổng:
-            {totalCashInput().toLocaleString()} đ
-          </div>
-
-          <button
-            on:click={saveDeposit}
-            class="w-full bg-blue-600 text-white rounded-2xl p-4 font-bold"
-          >
-            Lưu tiền mặt
-          </button>
-
         </div>
 
       </div>
@@ -331,7 +253,7 @@
       >
 
         <div class="text-slate-500">
-          Đã chuyển khoản hôm nay
+          Chuyển khoản hôm nay
         </div>
 
         <div
@@ -340,23 +262,82 @@
           {totalTodayTransfer().toLocaleString()} đ
         </div>
 
-        <div class="mt-6 space-y-3">
+      </div>
 
-          <input
-            bind:value={transferAmount}
-            type="number"
-            placeholder="Nhập số tiền chuyển khoản"
-            class="w-full border rounded-2xl p-4"
-          />
+      <!-- Balance -->
 
-          <button
-            on:click={saveTransfer}
-            class="w-full bg-green-600 text-white rounded-2xl p-4 font-bold"
-          >
-            Lưu chuyển khoản
-          </button>
+      <div
+        class="bg-white rounded-3xl shadow p-6"
+      >
 
+        <div class="text-slate-500">
+          Chênh lệch
         </div>
+
+        <div
+          class={`text-4xl font-bold mt-3 ${
+            balanceToday() >= 0
+              ? 'text-green-600'
+              : 'text-red-600'
+          }`}
+        >
+          {balanceToday().toLocaleString()} đ
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Actions -->
+
+    <div
+      class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+    >
+
+      <!-- Cash -->
+
+      <a
+        href={`/shippers/${shipperId}/cash`}
+        class="bg-blue-600 text-white rounded-3xl shadow p-8 text-center hover:scale-[1.02] transition"
+      >
+
+        <div class="text-5xl">
+          💵
+        </div>
+
+        <div
+          class="text-3xl font-bold mt-4"
+        >
+          Nhận tiền mặt
+        </div>
+
+      </a>
+
+      <!-- Transfer -->
+
+      <div
+        class="bg-white rounded-3xl shadow p-8"
+      >
+
+        <div
+          class="text-2xl font-bold mb-6"
+        >
+          Chuyển khoản
+        </div>
+
+        <input
+          bind:value={transferAmount}
+          type="number"
+          placeholder="Nhập số tiền"
+          class="w-full border rounded-2xl p-4 text-lg"
+        />
+
+        <button
+          on:click={saveTransfer}
+          class="w-full bg-green-600 text-white rounded-2xl p-4 font-bold text-lg mt-4"
+        >
+          Lưu chuyển khoản
+        </button>
 
       </div>
 
@@ -380,13 +361,15 @@
 
     </div>
 
-    <!-- Transactions -->
+    <!-- History -->
 
     <div
       class="bg-white rounded-3xl shadow p-6"
     >
 
-      <h2 class="text-2xl font-bold mb-6">
+      <h2
+        class="text-2xl font-bold mb-6"
+      >
         Lịch sử giao dịch
       </h2>
 
@@ -405,9 +388,23 @@
               <div>
 
                 <div
-                  class="font-bold text-lg"
+                  class={`font-bold text-lg ${
+                    t.type === 'deposit'
+                      ? 'text-blue-600'
+                      : 'text-green-600'
+                  }`}
                 >
-                  {t.type}
+
+                  {#if t.type === 'deposit'}
+
+                    Nộp tiền mặt
+
+                  {:else}
+
+                    Chuyển khoản
+
+                  {/if}
+
                 </div>
 
                 <div
@@ -423,15 +420,9 @@
               </div>
 
               <div
-                class="text-right"
+                class="text-2xl font-bold"
               >
-
-                <div
-                  class="text-2xl font-bold"
-                >
-                  {t.amount.toLocaleString()} đ
-                </div>
-
+                {t.amount.toLocaleString()} đ
               </div>
 
             </div>
@@ -439,7 +430,7 @@
             {#if t.note}
 
               <div
-                class="mt-3 text-slate-600"
+                class="text-slate-500 mt-3"
               >
                 {t.note}
               </div>

@@ -3,5 +3,6 @@
 	"/balances": [],
 	"/shippers": [],
 	"/shippers/create": [],
-	"/shippers/[id]": []
+	"/shippers/[id]": [],
+	"/shippers/[id]/cash": []
 }
