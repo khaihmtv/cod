@@ -169,7 +169,7 @@
           <p
             class="text-slate-500 mt-2"
           >
-            Quản lý giao dịch
+            Quản lý giao dịch 
           </p>
 
         
