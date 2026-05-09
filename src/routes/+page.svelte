@@ -1,39 +1,35 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import dayjs from 'dayjs'
+
+  import {
+    db
+  } from '$lib/firebase'
 
   import {
     collection,
-    onSnapshot,
     query,
-    orderBy
+    orderBy,
+    onSnapshot
   } from 'firebase/firestore'
 
-  import { db } from '$lib/firebase'
-
-  import dayjs from 'dayjs'
-
   let shippers = $state<any[]>([])
+
   let transactions = $state<any[]>([])
 
-  let keyword = $state('')
-
-  const shippersRef = collection(
-    db,
-    'shippers'
-  )
-
-  const transactionsRef = collection(
-    db,
-    'transactions'
-  )
+  let search = $state('')
 
   onMount(() => {
 
-    const unsub1 = onSnapshot(
-      query(
-        shippersRef,
-        orderBy('createdAt', 'desc')
-      ),
+    // shippers
+
+    const shipperQuery = query(
+      collection(db, 'shippers'),
+      orderBy('name')
+    )
+
+    const unsubShippers = onSnapshot(
+      shipperQuery,
       (snapshot) => {
 
         shippers = snapshot.docs.map(doc => ({
@@ -44,11 +40,15 @@
       }
     )
 
-    const unsub2 = onSnapshot(
-      query(
-        transactionsRef,
-        orderBy('createdAt', 'desc')
-      ),
+    // transactions
+
+    const transactionQuery = query(
+      collection(db, 'transactions'),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubTransactions = onSnapshot(
+      transactionQuery,
       (snapshot) => {
 
         transactions = snapshot.docs.map(doc => ({
@@ -60,290 +60,301 @@
     )
 
     return () => {
-      unsub1()
-      unsub2()
+
+      unsubShippers()
+      unsubTransactions()
+
     }
 
   })
 
-  function getTodayShipperCount() {
+  // today
 
-    const today = dayjs().format(
-      'DD/MM/YYYY'
+  function isToday(timestamp: number) {
+
+    return (
+      dayjs(timestamp).format(
+        'DD/MM/YYYY'
+      ) === dayjs().format(
+        'DD/MM/YYYY'
+      )
     )
 
-    const ids = new Set()
+  }
 
-    transactions.forEach(t => {
+  // fee
 
-      const date = dayjs(
-        t.createdAt
-      ).format('DD/MM/YYYY')
+  function todayFeeTransactions() {
 
-      if (date === today) {
-        ids.add(t.shipperId)
-      }
+    return transactions.filter(t => {
+
+      return (
+        t.type === 'deposit' &&
+        t.hasFee === true &&
+        isToday(t.createdAt)
+      )
 
     })
 
-    return ids.size
-
   }
 
-  function getTodayIncome() {
+  function todayFeeTotal() {
 
     return (
-      getTodayShipperCount() * 10000
+      todayFeeTransactions().length
+      * 10000
     )
 
   }
+
+  // search
 
   function filteredShippers() {
 
-    if (!keyword)
+    if (!search.trim())
       return []
 
-    return shippers.filter(shipper =>
-      shipper.name
+    return shippers.filter(shipper => {
+
+      return shipper.name
         ?.toLowerCase()
         .includes(
-          keyword.toLowerCase()
+          search.toLowerCase()
         )
-    )
+
+    })
 
   }
 
+  // active today
+
   function todayActiveShippers() {
 
-    const today = dayjs().format(
-      'DD/MM/YYYY'
-    )
-
-    const todayIds = new Set()
+    const activeIds = new Set()
 
     transactions.forEach(t => {
 
-      const date = dayjs(
-        t.createdAt
-      ).format('DD/MM/YYYY')
+      if (isToday(t.createdAt)) {
 
-      if (date === today) {
-        todayIds.add(t.shipperId)
+        activeIds.add(t.shipperId)
+
       }
 
     })
 
     return shippers.filter(
-      s => todayIds.has(s.id)
+      s => activeIds.has(s.id)
     )
 
   }
 
-  function getShipperName(id: string) {
+  // recent transactions
 
-    return shippers.find(
-      s => s.id === id
-    )?.name || 'Unknown'
+  function recentTransactions() {
+
+    return transactions.slice(0, 10)
 
   }
+
+  function shipperName(id: string) {
+
+    return (
+      shippers.find(
+        s => s.id === id
+      )?.name || 'Không rõ'
+    )
+
+  }
+
+  function totalSystemBalance() {
+
+  let deposit = 0
+  let transfer = 0
+
+  transactions.forEach(t => {
+
+    if (t.type === 'deposit') {
+
+      deposit += t.amount
+
+    }
+
+    if (t.type === 'bank_transfer') {
+
+      transfer += t.amount
+
+    }
+
+  })
+
+  return deposit - transfer
+
+}
+
+function imbalanceCount() {
+
+  const balances:any = {}
+
+  transactions.forEach(t => {
+
+    if (!balances[t.shipperId]) {
+
+      balances[t.shipperId] = {
+        deposit: 0,
+        transfer: 0
+      }
+
+    }
+
+    if (t.type === 'deposit') {
+
+      balances[t.shipperId].deposit += t.amount
+
+    }
+
+    if (t.type === 'bank_transfer') {
+
+      balances[t.shipperId].transfer += t.amount
+
+    }
+
+  })
+
+  return Object.values(balances)
+    .filter((b:any) => {
+
+      return b.deposit !== b.transfer
+
+    }).length
+
+}
 </script>
 
 <div class="min-h-screen bg-slate-100 p-4 md:p-8">
 
   <div class="max-w-6xl mx-auto">
 
-    <!-- Header -->
+    <!-- header -->
 
-    <div class="mb-8">
-
-      <div
-        class="flex items-center justify-between"
-      >
-
-        <div>
-
-          <h1 class="text-4xl font-bold">
-            Dashboard
-          </h1>
-
-          <p
-            class="text-slate-500 mt-2"
-          >
-            Quản lý giao dịch 
-          </p>
-
-        
-
-      </div>
-
-    </div>
-
-    <!-- Today income -->
-
-        </div>
-<div><a
-          href="/shippers/create"
-          class="bg-black text-white px-5 py-3 rounded-2xl font-bold"
-        >
-          + Thêm 
-        </a>
-        <a
-  href="/shippers"
-  class="bg-white border px-5 py-3 rounded-2xl font-bold"
->
-  Danh sách
-</a>
-        <a
-  href="/balances"
-  class="bg-pinkrder px-5 py-3 rounded-2xl font-bold"
->
-  Chênh lệch
-</a>
-</div>
     <div
-      class="bg-white rounded-3xl shadow p-8 mb-8"
+      class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8"
     >
 
-      <div class="text-slate-500">
-        Thu nhập hôm nay
+      <div>
+
+        <h1
+          class="text-4xl font-bold"
+        >
+          Quản lý Shipper
+        </h1>
+
+        <div
+          class="text-slate-500 mt-2"
+        >
+          Hệ thống quản lý giao dịch realtime
+        </div>
+
       </div>
 
-      <div
-        class="text-5xl font-bold text-green-600 mt-3"
-      >
-        {getTodayIncome().toLocaleString()} đ
-      </div>
+      <div class="flex gap-3">
 
-      <div
-        class="mt-3 text-slate-500"
-      >
 
-        {getTodayShipperCount()}
-        giao dịch hôm nay
+        <a
+          href="/shippers"
+          class="bg-white rounded-2xl px-5 py-3 shadow font-semibold"
+        >
+          Tất cả
+        </a>
 
+        <a
+          href="/shippers/add"
+          class="bg-blue-600 text-white rounded-2xl px-5 py-3 shadow font-semibold"
+        >
+          + Thêm
+        </a>
+<a
+  href="/balances"
+  class="relative"
+>
+
+  <div
+    class="w-14 h-14 rounded-full bg-red-600 text-white flex items-center justify-center shadow-xl font-bold text-xl"
+  >
+    !
+  </div>
+
+  {#if imbalanceCount() > 0}
+
+    <div
+      class="absolute -top-2 -right-2 bg-white text-red-600 border-2 border-red-600 min-w-7 h-7 px-1 rounded-full flex items-center justify-center text-sm font-bold"
+    >
+      {imbalanceCount()}
+    </div>
+
+  {/if}
+
+</a>
       </div>
 
     </div>
 
-    <!-- Search shipper -->
+    <!-- fee -->
+
+    <a
+      href="/fees"
+      class="block bg-green-600 text-white rounded-3xl shadow p-6 mb-8"
+    >
+
+      <div class="text-lg opacity-90">
+        Phí đã thu hôm nay
+      </div>
+
+      <div
+        class="text-5xl font-bold mt-3"
+      >
+        {todayFeeTotal().toLocaleString()} đ
+      </div>
+
+      <div class="mt-3 opacity-90">
+
+        {todayFeeTransactions().length}
+        giao dịch có phí
+
+      </div>
+
+    </a>
+
+    <!-- search -->
 
     <div
       class="bg-white rounded-3xl shadow p-6 mb-8"
     >
 
-      <h2
-        class="text-2xl font-bold mb-4"
+      <div
+        class="text-2xl font-bold mb-5"
       >
-        Tìm kiếm shipper
-      </h2>
+        Tìm shipper
+      </div>
 
       <input
-        bind:value={keyword}
+        bind:value={search}
+        type="text"
         placeholder="Nhập tên shipper..."
-        class="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full border rounded-2xl p-4"
       />
 
-      {#if keyword.trim().length > 0}
+      {#if search.trim()}
 
         <div class="mt-5 space-y-3">
 
-          {#each filteredShippers() as shipper}
+          {#if filteredShippers().length > 0}
 
-            <a
-              href={`/shippers/${shipper.id}`}
-              class="block bg-slate-50 hover:bg-slate-100 rounded-2xl p-4 transition"
-            >
+            {#each filteredShippers() as shipper}
 
-              <div
-                class="flex items-center justify-between"
+              <a
+                href={`/shippers/${shipper.id}`}
+                class="block border rounded-2xl p-4 hover:bg-slate-50"
               >
-
-                <div>
-
-                  <div
-                    class="font-bold text-lg"
-                  >
-                    {shipper.name}
-                  </div>
-
-                  <div
-                    class="text-slate-500 mt-1"
-                  >
-                    {shipper.bankName}
-                  </div>
-
-                  <div
-                    class="text-slate-500"
-                  >
-                    {shipper.bankNumber}
-                  </div>
-
-                </div>
-
-                <div
-                  class="text-blue-600 font-bold"
-                >
-                  Xem →
-                </div>
-
-              </div>
-
-            </a>
-
-          {/each}
-
-          {#if filteredShippers().length === 0}
-
-            <div
-              class="text-center text-slate-500 py-6"
-            >
-              Không tìm thấy shipper
-            </div>
-
-          {/if}
-
-        </div>
-
-      {/if}
-
-    </div>
-
-    <!-- Today active shippers -->
-
-    <div
-      class="bg-white rounded-3xl shadow p-6 mb-8"
-    >
-
-      <div
-        class="flex items-center justify-between mb-5"
-      >
-
-        <h2
-          class="text-2xl font-bold"
-        >
-          Shipper hoạt động hôm nay
-        </h2>
-
-        <div class="text-slate-500">
-          {getTodayShipperCount()} shipper
-        </div>
-
-      </div>
-
-      <div class="space-y-3">
-
-        {#each todayActiveShippers() as shipper}
-
-          <a
-            href={`/shippers/${shipper.id}`}
-            class="block bg-slate-50 hover:bg-slate-100 rounded-2xl p-4 transition"
-          >
-
-            <div
-              class="flex items-center justify-between"
-            >
-
-              <div>
 
                 <div
                   class="font-bold text-lg"
@@ -357,35 +368,80 @@
                   {shipper.bankName}
                 </div>
 
-              </div>
+              </a>
 
-              <div
-                class="text-green-600 font-bold"
-              >
-                Hoạt động
-              </div>
+            {/each}
 
+          {:else}
+
+            <div
+              class="text-slate-500"
+            >
+              Không tìm thấy shipper
+            </div>
+
+          {/if}
+
+        </div>
+
+      {/if}
+
+    </div>
+
+    <!-- active today -->
+
+    <div
+      class="bg-white rounded-3xl shadow p-6 mb-8"
+    >
+
+      <div
+        class="flex items-center justify-between mb-6"
+      >
+
+        <h2
+          class="text-2xl font-bold"
+        >
+          Shipper hoạt động hôm nay
+        </h2>
+
+        <div
+          class="bg-blue-100 text-blue-700 px-4 py-2 rounded-2xl font-bold"
+        >
+          {todayActiveShippers().length}
+        </div>
+
+      </div>
+
+      <div class="space-y-3">
+
+        {#each todayActiveShippers() as shipper}
+
+          <a
+            href={`/shippers/${shipper.id}`}
+            class="block border rounded-2xl p-4 hover:bg-slate-50"
+          >
+
+            <div
+              class="font-bold text-lg"
+            >
+              {shipper.name}
+            </div>
+
+            <div
+              class="text-slate-500 mt-1"
+            >
+              {shipper.bankName}
             </div>
 
           </a>
 
         {/each}
 
-        {#if todayActiveShippers().length === 0}
-
-          <div
-            class="text-center text-slate-500 py-6"
-          >
-            Chưa có giao dịch hôm nay
-          </div>
-
-        {/if}
-
       </div>
 
     </div>
 
-    <!-- Recent transactions -->
+    <!-- history -->
 
     <div
       class="bg-white rounded-3xl shadow p-6"
@@ -399,7 +455,7 @@
 
       <div class="space-y-4">
 
-        {#each transactions.slice(0, 20) as t}
+        {#each recentTransactions() as t}
 
           <div
             class="border rounded-2xl p-4"
@@ -414,31 +470,21 @@
                 <div
                   class="font-bold text-lg"
                 >
-                  {getShipperName(
-                    t.shipperId
-                  )}
+                  {shipperName(t.shipperId)}
                 </div>
 
                 <div
                   class="text-slate-500 mt-1"
                 >
-                  {t.type}
-                </div>
 
-              </div>
+                  {t.type === 'deposit'
+                    ? 'Nộp tiền mặt'
+                    : 'Chuyển khoản'}
 
-              <div
-                class="text-right"
-              >
-
-                <div
-                  class="font-bold text-xl"
-                >
-                  {t.amount.toLocaleString()} đ
                 </div>
 
                 <div
-                  class="text-slate-500 mt-1"
+                  class="text-slate-500 text-sm mt-1"
                 >
                   {dayjs(
                     t.createdAt
@@ -449,17 +495,45 @@
 
               </div>
 
-            </div>
-
-            {#if t.note}
-
               <div
-                class="mt-3 text-slate-600"
+                class={`text-2xl font-bold ${
+                  t.type === 'deposit'
+                    ? 'text-blue-600'
+                    : 'text-green-600'
+                }`}
               >
-                {t.note}
+                {t.amount.toLocaleString()} đ
               </div>
 
-            {/if}
+            </div>
+
+            <!-- tags -->
+
+            <div
+              class="flex gap-2 mt-3 flex-wrap"
+            >
+
+              {#if t.hasFee === false}
+
+                <div
+                  class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-xl text-sm"
+                >
+                  Không phí
+                </div>
+
+              {/if}
+
+              {#if t.isBorrow}
+
+                <div
+                  class="bg-orange-100 text-orange-700 px-3 py-1 rounded-xl text-sm"
+                >
+                  Mượn tiền
+                </div>
+
+              {/if}
+
+            </div>
 
           </div>
 
