@@ -17,6 +17,8 @@
 
   let shippers = $state<any[]>([])
 
+  let expandedDays = $state<string[]>([])
+
   onMount(() => {
 
     // transactions
@@ -66,6 +68,8 @@
 
   })
 
+  // fee transactions
+
   function feeTransactions() {
 
     return transactions.filter(
@@ -75,6 +79,8 @@
     )
 
   }
+
+  // group by day
 
   function groupedByDay() {
 
@@ -102,6 +108,8 @@
 
   }
 
+  // total fee per day
+
   function dayTotal(day: string) {
 
     return (
@@ -110,6 +118,8 @@
     )
 
   }
+
+  // all fee
 
   function grandTotal() {
 
@@ -120,6 +130,8 @@
 
   }
 
+  // shipper name
+
   function shipperName(id: string) {
 
     return (
@@ -127,6 +139,29 @@
         s => s.id === id
       )?.name || 'Không rõ'
     )
+
+  }
+
+  // expand
+
+  function toggleExpand(day:string) {
+
+    if (
+      expandedDays.includes(day)
+    ) {
+
+      expandedDays = expandedDays.filter(
+        d => d !== day
+      )
+
+    } else {
+
+      expandedDays = [
+        ...expandedDays,
+        day
+      ]
+
+    }
 
   }
 </script>
@@ -170,21 +205,22 @@
 
     <!-- grouped -->
 
-    <div class="space-y-8">
+    <div class="space-y-6">
 
       {#each Object.keys(groupedByDay()) as day}
 
         <div
-          class="bg-white rounded-3xl shadow p-6"
+          class="bg-white rounded-3xl shadow overflow-hidden"
         >
 
-          <!-- day header -->
+          <!-- header -->
 
-          <div
-            class="flex items-center justify-between mb-6"
+          <button
+            on:click={() => toggleExpand(day)}
+            class="w-full p-6 flex items-center justify-between hover:bg-slate-50 transition"
           >
 
-            <div>
+            <div class="text-left">
 
               <div
                 class="text-2xl font-bold"
@@ -209,55 +245,59 @@
               {dayTotal(day).toLocaleString()} đ
             </div>
 
-          </div>
+          </button>
 
-          <!-- transactions -->
+          <!-- expanded -->
 
-          <div class="space-y-3">
+          {#if expandedDays.includes(day)}
 
-            {#each groupedByDay()[day] as t}
+            <div
+              class="border-t p-4 bg-slate-50"
+            >
 
-              <div
-                class="border rounded-2xl p-4"
-              >
+              <div class="space-y-3">
 
-                <div
-                  class="flex items-center justify-between"
-                >
-
-                  <div>
-
-                    <div
-                      class="font-bold text-lg"
-                    >
-                      {shipperName(t.shipperId)}
-                    </div>
-
-                    <div
-                      class="text-slate-500 mt-1"
-                    >
-                      {dayjs(
-                        t.createdAt
-                      ).format(
-                        'HH:mm'
-                      )}
-                    </div>
-
-                  </div>
+                {#each groupedByDay()[day] as t}
 
                   <div
-                    class="text-green-600 font-bold text-xl"
+                    class="bg-white rounded-2xl border p-4 flex items-center justify-between"
                   >
-                    +10,000 đ
+
+                    <div>
+
+                      <div
+                        class="font-bold text-lg"
+                      >
+                        {shipperName(t.shipperId)}
+                      </div>
+
+                      <div
+                        class="text-slate-500 text-sm mt-1"
+                      >
+                        {dayjs(
+                          t.createdAt
+                        ).format(
+                          'HH:mm'
+                        )}
+                      </div>
+
+                    </div>
+
+                    <div
+                      class="text-green-600 font-bold text-xl"
+                    >
+                      +10,000 đ
+                    </div>
+
                   </div>
 
-                </div>
+                {/each}
 
               </div>
 
-            {/each}
+            </div>
 
-          </div>
+          {/if}
 
         </div>
 

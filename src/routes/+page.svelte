@@ -240,21 +240,7 @@ function imbalanceCount() {
       class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8"
     >
 
-      <div>
 
-        <h1
-          class="text-4xl font-bold"
-        >
-          Quản lý Shipper
-        </h1>
-
-        <div
-          class="text-slate-500 mt-2"
-        >
-          Hệ thống quản lý giao dịch realtime
-        </div>
-
-      </div>
 
       <div class="flex gap-3">
 
@@ -267,7 +253,7 @@ function imbalanceCount() {
         </a>
 
         <a
-          href="/shippers/add"
+          href="/shippers/create"
           class="bg-blue-600 text-white rounded-2xl px-5 py-3 shadow font-semibold"
         >
           + Thêm
@@ -305,20 +291,16 @@ function imbalanceCount() {
       class="block bg-green-600 text-white rounded-3xl shadow p-6 mb-8"
     >
 
-      <div class="text-lg opacity-90">
-        Phí đã thu hôm nay
-      </div>
-
       <div
         class="text-5xl font-bold mt-3"
       >
         {todayFeeTotal().toLocaleString()} đ
       </div>
 
-      <div class="mt-3 opacity-90">
+      <div class="mt-1 opacity-90">
 
         {todayFeeTransactions().length}
-        giao dịch có phí
+        giao dịch có phí hom nay
 
       </div>
 
@@ -330,16 +312,12 @@ function imbalanceCount() {
       class="bg-white rounded-3xl shadow p-6 mb-8"
     >
 
-      <div
-        class="text-2xl font-bold mb-5"
-      >
-        Tìm shipper
-      </div>
+
 
       <input
         bind:value={search}
         type="text"
-        placeholder="Nhập tên shipper..."
+        placeholder="Nhập tên ..."
         class="w-full border rounded-2xl p-4"
       />
 
@@ -377,7 +355,7 @@ function imbalanceCount() {
             <div
               class="text-slate-500"
             >
-              Không tìm thấy shipper
+              Không tìm thấy
             </div>
 
           {/if}

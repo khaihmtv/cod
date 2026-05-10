@@ -87,14 +87,6 @@
           </p>
 
         </div>
-
-        <a
-          href="/shippers/create"
-          class="bg-black text-white px-5 py-3 rounded-2xl font-bold"
-        >
-          + Thêm shipper
-        </a>
-
       </div>
 
     </div>
