@@ -315,7 +315,7 @@
     Nhập tiền mặt
   </div>
 
-  <div class="space-y-3">
+  <div class="space-y-4">
 
     {#each bills as bill}
 
@@ -334,10 +334,14 @@
         <!-- value -->
 
         <div
-          class="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl text-lg font-bold min-w-[70px] text-center"
-        >
-          {bill.value()}
-        </div>
+  on:click={() => addBill(
+    bill.key,
+    -bill.value()
+  )}
+  class="bg-blue-50 text-red-600 px-4 py-2 rounded-xl text-lg font-bold min-w-[70px] text-center cursor-pointer active:scale-95 transition"
+>
+  {bill.value()}
+</div>
 
         <!-- buttons -->
 

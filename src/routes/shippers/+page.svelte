@@ -77,13 +77,13 @@
           <h1
             class="text-4xl font-bold mt-4"
           >
-            Tất cả shipper
+            Tất cả 
           </h1>
 
           <p
             class="text-slate-500 mt-2"
           >
-            Danh sách toàn bộ shipper
+            Danh sách toàn bộ {shippers.length} 
           </p>
 
         </div>
@@ -99,7 +99,7 @@
 
       <input
         bind:value={keyword}
-        placeholder="Tìm shipper..."
+        placeholder="Tìm ..."
         class="w-full border rounded-2xl p-4 outline-none focus:ring-2 focus:ring-blue-500"
       />
 

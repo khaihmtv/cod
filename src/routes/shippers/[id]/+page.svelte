@@ -27,9 +27,11 @@
 
   let transferAmount = $state(0)
 
-  let receivedTransferAmount = $state(0)
-
   let expandedFees = $state<string[]>([])
+
+  // mượn tiền khi chuyển khoản
+
+  let transferIsBorrow = $state(false)
 
   onMount(async () => {
 
@@ -98,7 +100,7 @@
 
   }
 
-  // totals
+  // totals today
 
   function totalTodayCash() {
 
@@ -144,6 +146,8 @@
       )
 
   }
+
+  // chênh lệch hôm nay
 
   function balanceToday() {
 
@@ -207,6 +211,8 @@
 
       note: 'Đã chuyển khoản',
 
+      isBorrow: transferIsBorrow,
+
       createdAt: Date.now()
 
     }
@@ -215,50 +221,10 @@
       collection(db, 'transactions'),
       newTransaction
     )
-
-    transactions = [
-      newTransaction,
-      ...transactions
-    ]
 
     transferAmount = 0
 
-  }
-
-  // received transfer
-
-  async function saveReceivedTransfer() {
-
-    if (!receivedTransferAmount)
-      return
-
-    const newTransaction = {
-
-      shipperId,
-
-      type: 'received_transfer',
-
-      amount: Number(
-        receivedTransferAmount
-      ),
-
-      note: 'Đã nhận chuyển khoản',
-
-      createdAt: Date.now()
-
-    }
-
-    await addDoc(
-      collection(db, 'transactions'),
-      newTransaction
-    )
-
-    transactions = [
-      newTransaction,
-      ...transactions
-    ]
-
-    receivedTransferAmount = 0
+    transferIsBorrow = false
 
   }
 
@@ -416,222 +382,197 @@
 
     </div>
 
-    <!-- stats -->
-<!-- finance card -->
-
-<div
-  class="bg-white rounded-3xl shadow p-6 mb-8"
->
-
-  <!-- title -->
-
-  <div
-    class="flex items-center justify-between mb-6"
-  >
-
-    <div class="text-right">
-
-  <div
-    class="text-sm text-slate-500 mb-1"
-  >
-    Chênh lệch
-  </div>
-
-  <div
-    class={`text-3xl font-bold ${
-      balanceToday() === 0
-        ? 'text-slate-700'
-        : balanceToday() > 0
-        ? 'text-green-600'
-        : 'text-red-600'
-    }`}
-  >
-
-    {Math.abs(balanceToday())
-      .toLocaleString()} đ
-
-  </div>
-
-</div>
-
-
-
-   
-
-  </div>
-
-  <!-- stats -->
-
-  <div
-    class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
-  >
-
-    <!-- cash -->
+    <!-- finance card -->
 
     <div
-      class="bg-blue-50 rounded-2xl p-4"
+      class="bg-white rounded-3xl shadow p-6 mb-8"
     >
 
       <div
-        class="text-sm text-slate-500"
+        class="flex items-center justify-between mb-6"
       >
-        Tiền mặt
+
+        <div class="text-right">
+
+          <div
+            class="text-sm text-slate-500 mb-1"
+          >
+            Chênh lệch hôm nay
+          </div>
+
+          <div
+            class={`text-3xl font-bold ${
+              balanceToday() === 0
+                ? 'text-slate-700'
+                : balanceToday() > 0
+                ? 'text-green-600'
+                : 'text-red-600'
+            }`}
+          >
+
+            {Math.abs(balanceToday())
+              .toLocaleString()} đ
+
+          </div>
+
+        </div>
+
       </div>
 
+      <!-- stats -->
+
       <div
-        class="text-2xl font-bold text-blue-600 mt-2"
+        class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
       >
-        {totalTodayCash().toLocaleString()} đ
+
+        <div
+          class="bg-blue-50 rounded-2xl p-4"
+        >
+
+          <div
+            class="text-sm text-slate-500"
+          >
+            Tiền mặt hôm nay
+          </div>
+
+          <div
+            class="text-2xl font-bold text-blue-600 mt-2"
+          >
+            {totalTodayCash().toLocaleString()} đ
+          </div>
+
+        </div>
+
+        <div
+          class="bg-purple-50 rounded-2xl p-4"
+        >
+
+          <div
+            class="text-sm text-slate-500"
+          >
+            Đã nhận CK hôm nay
+          </div>
+
+          <div
+            class="text-2xl font-bold text-purple-600 mt-2"
+          >
+            {totalTodayReceivedTransfer().toLocaleString()} đ
+          </div>
+
+        </div>
+
+        <div
+          class="bg-green-50 rounded-2xl p-4"
+        >
+
+          <div
+            class="text-sm text-slate-500"
+          >
+            Đã chuyển hôm nay
+          </div>
+
+          <div
+            class="text-2xl font-bold text-green-600 mt-2"
+          >
+            {totalTodayBankTransfer().toLocaleString()} đ
+          </div>
+
+        </div>
+
+        <div
+          class="bg-orange-50 rounded-2xl p-4"
+        >
+
+          <div
+            class="text-sm text-slate-500"
+          >
+            Ngày nộp tháng
+          </div>
+
+          <div
+            class="text-2xl font-bold text-orange-600 mt-2"
+          >
+            {monthlyDepositCount()}
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- actions -->
+
+      <div
+        class="grid grid-cols-1 lg:grid-cols-2 gap-4"
+      >
+
+        <!-- cash -->
+
+        <a
+          href={`/shippers/${shipperId}/cash`}
+          class="bg-blue-600 text-white rounded-2xl p-6 text-center hover:scale-[1.02] transition"
+        >
+
+          <div class="text-4xl">
+            💵
+          </div>
+
+          <div
+            class="text-xl font-bold mt-3"
+          >
+            Nhận tiền mặt
+          </div>
+
+        </a>
+
+        <!-- transfer -->
+
+        <div
+          class="border rounded-2xl p-5"
+        >
+
+          <div
+            class="font-bold text-lg mb-4 text-green-600"
+          >
+            Chuyển khoản
+          </div>
+
+          <input
+            bind:value={transferAmount}
+            type="number"
+            placeholder="Số tiền"
+            class="w-full border rounded-xl p-3"
+          />
+
+          <label
+            class="flex items-center gap-3 mt-4"
+          >
+
+            <input
+              bind:checked={transferIsBorrow}
+              type="checkbox"
+              class="w-5 h-5"
+            />
+
+            <span
+              class="text-sm font-semibold text-orange-600"
+            >
+              Mượn tiền
+            </span>
+
+          </label>
+
+          <button
+            on:click={saveTransfer}
+            class="w-full bg-green-600 text-white rounded-xl p-3 mt-4 font-bold"
+          >
+            Lưu
+          </button>
+
+        </div>
+
       </div>
 
     </div>
-
-    <!-- received transfer -->
-
-    <div
-      class="bg-purple-50 rounded-2xl p-4"
-    >
-
-      <div
-        class="text-sm text-slate-500"
-      >
-        Đã nhận CK
-      </div>
-
-      <div
-        class="text-2xl font-bold text-purple-600 mt-2"
-      >
-        {totalTodayReceivedTransfer().toLocaleString()} đ
-      </div>
-
-    </div>
-
-    <!-- transfer -->
-
-    <div
-      class="bg-green-50 rounded-2xl p-4"
-    >
-
-      <div
-        class="text-sm text-slate-500"
-      >
-        Đã chuyển
-      </div>
-
-      <div
-        class="text-2xl font-bold text-green-600 mt-2"
-      >
-        {totalTodayBankTransfer().toLocaleString()} đ
-      </div>
-
-    </div>
-
-    <!-- monthly -->
-
-    <div
-      class="bg-orange-50 rounded-2xl p-4"
-    >
-
-      <div
-        class="text-sm text-slate-500"
-      >
-        Ngày nộp tháng
-      </div>
-
-      <div
-        class="text-2xl font-bold text-orange-600 mt-2"
-      >
-        {monthlyDepositCount()}
-      </div>
-
-    </div>
-
-  </div>
-
-  <!-- actions -->
-
-  <div
-    class="grid grid-cols-1 lg:grid-cols-3 gap-4"
-  >
-
-    <!-- cash -->
-
-    <a
-      href={`/shippers/${shipperId}/cash`}
-      class="bg-blue-600 text-white rounded-2xl p-6 text-center hover:scale-[1.02] transition"
-    >
-
-      <div class="text-4xl">
-        💵
-      </div>
-
-      <div
-        class="text-xl font-bold mt-3"
-      >
-        Nhận tiền mặt
-      </div>
-
-    </a>
-
-    <!-- receive transfer -->
-
-    <div
-      class="border rounded-2xl p-5"
-    >
-
-      <div
-        class="font-bold text-lg mb-4 text-purple-600"
-      >
-        Nhận chuyển khoản
-      </div>
-
-      <input
-        bind:value={receivedTransferAmount}
-        type="number"
-        placeholder="Số tiền"
-        class="w-full border rounded-xl p-3"
-      />
-
-      <button
-        on:click={saveReceivedTransfer}
-        class="w-full bg-purple-600 text-white rounded-xl p-3 mt-3 font-bold"
-      >
-        Lưu
-      </button>
-
-    </div>
-
-    <!-- transfer -->
-
-    <div
-      class="border rounded-2xl p-5"
-    >
-
-      <div
-        class="font-bold text-lg mb-4 text-green-600"
-      >
-        Chuyển khoản
-      </div>
-
-      <input
-        bind:value={transferAmount}
-        type="number"
-        placeholder="Số tiền"
-        class="w-full border rounded-xl p-3"
-      />
-
-      <button
-        on:click={saveTransfer}
-        class="w-full bg-green-600 text-white rounded-xl p-3 mt-3 font-bold"
-      >
-        Lưu
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
 
     <!-- fee history -->
 
@@ -678,8 +619,6 @@
             class="border rounded-2xl overflow-hidden"
           >
 
-            <!-- header -->
-
             <button
               on:click={() => toggleExpand(day)}
               class="w-full p-5 flex items-center justify-between bg-slate-50"
@@ -711,8 +650,6 @@
               </div>
 
             </button>
-
-            <!-- detail -->
 
             {#if expandedFees.includes(day)}
 
@@ -762,24 +699,6 @@
 
         {/each}
 
-      </div>
-
-    </div>
-
-    <!-- monthly -->
-
-    <div
-      class="bg-white rounded-3xl shadow p-6 mb-8"
-    >
-
-      <div class="text-slate-500">
-        Số ngày nộp trong tháng
-      </div>
-
-      <div
-        class="text-5xl font-bold mt-3"
-      >
-        {monthlyDepositCount()}
       </div>
 
     </div>
@@ -856,8 +775,6 @@
 
             </div>
 
-            <!-- tags -->
-
             <div
               class="flex gap-2 mt-3 flex-wrap items-center"
             >
@@ -890,7 +807,7 @@
               {#if t.isBorrow}
 
                 <div
-                  class="bg-orange-100 text-orange-700 px-3 py-1 rounded-xl text-sm"
+                  class="bg-orange-100 text-orange-700 px-3 py-1 rounded-xl text-sm font-bold"
                 >
                   Mượn tiền
                 </div>

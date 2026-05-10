@@ -15,6 +15,8 @@
 
   onMount(() => {
 
+    // shippers
+
     const unsub1 = onSnapshot(
       query(
         collection(db, 'shippers'),
@@ -29,6 +31,8 @@
 
       }
     )
+
+    // transactions
 
     const unsub2 = onSnapshot(
       query(
@@ -46,13 +50,20 @@
     )
 
     return () => {
+
       unsub1()
+
       unsub2()
+
     }
 
   })
 
-  function totalDeposit(shipperId: string) {
+  // tổng tiền mặt
+
+  function totalDeposit(
+    shipperId: string
+  ) {
 
     return transactions
       .filter(
@@ -67,7 +78,30 @@
 
   }
 
-  function totalTransfer(shipperId: string) {
+  // tổng nhận chuyển khoản
+
+  function totalReceivedTransfer(
+    shipperId: string
+  ) {
+
+    return transactions
+      .filter(
+        t =>
+          t.shipperId === shipperId &&
+          t.type === 'received_transfer'
+      )
+      .reduce(
+        (a, b) => a + b.amount,
+        0
+      )
+
+  }
+
+  // tổng đã chuyển khoản
+
+  function totalTransfer(
+    shipperId: string
+  ) {
 
     return transactions
       .filter(
@@ -82,14 +116,49 @@
 
   }
 
-  function balance(shipperId: string) {
+  // chênh lệch toàn bộ
+
+  function balance(
+    shipperId: string
+  ) {
 
     return (
+
       totalDeposit(shipperId)
-      - totalTransfer(shipperId)
+
+      +
+
+      totalReceivedTransfer(
+        shipperId
+      )
+
+      -
+
+      totalTransfer(shipperId)
+
     )
 
   }
+
+  // tổng lệch toàn hệ thống
+
+  function totalSystemBalance() {
+
+    return shippers.reduce(
+      (total, shipper) => {
+
+        return (
+          total +
+          balance(shipper.id)
+        )
+
+      },
+      0
+    )
+
+  }
+
+  // chỉ hiện shipper lệch tiền
 
   function unbalancedShippers() {
 
@@ -110,7 +179,7 @@
     <div class="mb-8">
 
       <div
-        class="flex items-center justify-between"
+        class="flex items-center justify-between flex-wrap gap-4"
       >
 
         <div>
@@ -125,14 +194,43 @@
           <h1
             class="text-4xl font-bold mt-4"
           >
-            Chênh lệch tiền
+            Lệch tiền toàn bộ
           </h1>
 
-          <p
+          <div
             class="text-slate-500 mt-2"
           >
-            Các shipper chưa cân bằng tiền
-          </p>
+            Thống kê toàn bộ hệ thống
+          </div>
+
+        </div>
+
+        <!-- total system -->
+
+        <div
+          class="bg-white rounded-3xl shadow px-6 py-5 min-w-[260px]"
+        >
+
+          <div
+            class="text-slate-500 text-sm"
+          >
+            Tổng chênh lệch hệ thống
+          </div>
+
+          <div
+            class={`text-4xl font-bold mt-2 ${
+              totalSystemBalance() > 0
+                ? 'text-blue-600'
+                : totalSystemBalance() < 0
+                ? 'text-red-600'
+                : 'text-green-600'
+            }`}
+          >
+
+            {totalSystemBalance()
+              .toLocaleString()} đ
+
+          </div>
 
         </div>
 
@@ -163,18 +261,6 @@
                 {shipper.name}
               </div>
 
-              <div
-                class="text-slate-500 mt-2"
-              >
-                {shipper.bankName}
-              </div>
-
-              <div
-                class="text-slate-500"
-              >
-                {shipper.bankNumber}
-              </div>
-
             </div>
 
             <div class="text-right">
@@ -182,7 +268,7 @@
               <div
                 class="text-slate-500"
               >
-                Chênh lệch
+              {balance(shipper.id) > 0 ? 'thừa' : 'thiếu'}
               </div>
 
               <div
@@ -192,60 +278,19 @@
                     : 'text-red-600'
                 }`}
               >
+
                 {balance(
                   shipper.id
                 ).toLocaleString()} đ
+
               </div>
 
             </div>
 
           </div>
 
-          <div
-            class="grid grid-cols-2 gap-4 mt-6"
-          >
+          <!-- stats -->
 
-            <div
-              class="bg-slate-50 rounded-2xl p-4"
-            >
-
-              <div
-                class="text-slate-500"
-              >
-                Tiền mặt đã nộp
-              </div>
-
-              <div
-                class="text-2xl font-bold mt-2"
-              >
-                {totalDeposit(
-                  shipper.id
-                ).toLocaleString()} đ
-              </div>
-
-            </div>
-
-            <div
-              class="bg-slate-50 rounded-2xl p-4"
-            >
-
-              <div
-                class="text-slate-500"
-              >
-                Đã chuyển khoản
-              </div>
-
-              <div
-                class="text-2xl font-bold mt-2"
-              >
-                {totalTransfer(
-                  shipper.id
-                ).toLocaleString()} đ
-              </div>
-
-            </div>
-
-          </div>
 
         </a>
 
