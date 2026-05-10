@@ -429,31 +429,34 @@
     class="flex items-center justify-between mb-6"
   >
 
-    <div>
+    <div class="text-right">
 
-      <div
-        class="text-3xl font-bold"
-      >
-        Tổng quan hôm nay
-      </div>
+  <div
+    class="text-sm text-slate-500 mb-1"
+  >
+    Chênh lệch
+  </div>
 
-      <div
-        class="text-slate-500 mt-1"
-      >
-        Theo dõi dòng tiền realtime
-      </div>
+  <div
+    class={`text-3xl font-bold ${
+      balanceToday() === 0
+        ? 'text-slate-700'
+        : balanceToday() > 0
+        ? 'text-green-600'
+        : 'text-red-600'
+    }`}
+  >
 
-    </div>
+    {Math.abs(balanceToday())
+      .toLocaleString()} đ
 
-    <div
-      class={`text-3xl font-bold ${
-        balanceToday() >= 0
-          ? 'text-green-600'
-          : 'text-red-600'
-      }`}
-    >
-      {balanceToday().toLocaleString()} đ
-    </div>
+  </div>
+
+</div>
+
+
+
+   
 
   </div>
 
